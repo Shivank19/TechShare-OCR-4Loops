@@ -2,113 +2,139 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Prescription OCR → Medication List</title>
+  <title>OCR Todo Capture – Camera & Image → Tasks</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
+
 <body>
 <div class="app">
-  <header class="app-header">
-    <h1>Prescription OCR → Medication List</h1>
-    <p>
-      Take or upload a prescription image. We auto-extract medicines into editable cards,
-      so you can quickly build a medication  list.
-    </p>
 
-    <div class="pill-row" aria-label="OCR mode">
-      <button id="modeFast" class="active" type="button">⚡ Fast mode</button>
-      <button id="modeAccurate" type="button">🎯 Accurate mode</button>
-    </div>
-    <p class="flow-hint">
-      Fast mode slightly reduces image size for quicker OCR (less accurate, but fields stay editable).<br>
-      Accurate mode keeps full detail and is better for final confirmation.
-    </p>
-  </header>
-
-  <!-- INPUT SECTION: Upload vs Camera -->
-  <h2 class="section-title">1. Provide Prescription Image</h2>
-  <div class="layout">
-    <!-- Upload card -->
-    <section class="card card-input">
-      <h3 style="margin-top:0;">Upload a Photo</h3>
-      <p class="status-text">
-        Snap a photo of a printed prescription and upload it. We'll fill in the list for you.
+  <!-- PAGE: CAPTURE & DRAFT -->
+  <div id="pageCapture">
+    <header class="app-header">
+      <h1>OCR Todo Capture</h1>
+      <p>
+        Capture a handwritten or printed to-do list using your camera or upload an image.
+        We turn each line into editable task cards you can confirm into your Todo List.
       </p>
-      <input type="file" id="imageInput" accept="image/*">
-      <div style="display:flex; gap:.5rem; margin-top:.75rem; flex-wrap:wrap;">
-        <button class="btn btn-primary" type="button" id="btnUploadOCR">
-          Extract from Image
-        </button>
-        <button class="btn btn-ghost" type="button" id="btnClearAll">
-          Clear result
-        </button>
+
+      <!-- FAST / ACCURATE MODE -->
+      <div class="pill-row">
+        <button id="modeFast" class="active" type="button">⚡ Fast mode</button>
+        <button id="modeAccurate" type="button">🎯 Accurate mode</button>
       </div>
-      <p id="status" class="status-text"></p>
-      <img id="preview" style="display:none;">
-    </section>
-
-    <!-- Camera card -->
-    <section class="card card-camera">
-      <h3 style="margin-top:0;">Use Live Camera</h3>
-      <p class="status-text">
-        For a quick capture, use your webcam/phone camera and let Fast mode pre-fill your meds.
+      <p class="flow-hint">
+        Fast mode runs quicker with mild downscaling.  
+        Accurate mode uses full resolution for cleaner text.
       </p>
-      <div class="camera-container">
-        <video id="video" autoplay playsinline></video>
-        <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
-          <button class="btn btn-outline" type="button" id="btnStartCamera">
-            Start Camera
-          </button>
-          <button class="btn btn-primary" type="button" id="btnCaptureOCR">
-            Capture & Extract
-          </button>
+
+      <!-- LANGUAGE DROPDOWN -->
+      <div style="margin-top:1rem;">
+        <label for="langSelect" class="lang-label">OCR Language:</label>
+        <select id="langSelect" class="lang-select">
+          <option value="eng">English</option>
+          <option value="spa">Spanish</option>
+          <option value="hin">Hindi</option>
+          <option value="fra">French</option>
+          <option value="deu">German</option>
+          <option value="ita">Italian</option>
+          <option value="por">Portuguese</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- CAMERA CAPTURE -->
+    <h2 class="section-title">1. Capture with Camera</h2>
+    <section class="card">
+      <div class="layout">
+        <div class="card-half">
+          <h3>Live Camera</h3>
+          <p class="status-text">Start camera → capture → we extract tasks.</p>
+
+          <div class="camera-container">
+            <video id="video" autoplay playsinline></video>
+
+            <div class="button-row">
+              <button class="btn btn-outline" id="btnStartCamera">Start Camera</button>
+              <button class="btn btn-primary" id="btnCaptureOCR">Capture & Extract</button>
+            </div>
+
+            <p id="cameraStatus" class="status-text"></p>
+          </div>
         </div>
-        <p id="cameraStatus" class="status-text"></p>
+
+        <div class="card-half">
+          <h3>Captured Snapshot</h3>
+          <img id="preview" style="display:none;">
+        </div>
+      </div>
+    </section>
+
+    <!-- IMAGE UPLOAD -->
+    <h2 class="section-title">Or Upload an Image</h2>
+    <section class="card">
+      <h3>Upload To-Do List Image</h3>
+      <p class="status-text">Upload a photo/screenshot; we extract tasks from it.</p>
+
+      <input type="file" id="imageUpload" accept="image/*" class="file-input">
+
+      <button class="btn btn-primary" id="btnUploadOCR">Upload & Extract Tasks</button>
+
+      <p id="uploadStatus" class="status-text"></p>
+    </section>
+
+    <!-- RAW OCR + JSON -->
+    <h2 class="section-title">2. Raw OCR & JSON</h2>
+    <div class="layout">
+      <section class="card card-half">
+        <h3>Raw OCR Text</h3>
+        <textarea id="rawText" placeholder="OCR text appears here..."></textarea>
+        <p id="status" class="status-text"></p>
+      </section>
+
+      <section class="card card-half">
+        <h3>Parsed JSON</h3>
+        <textarea id="jsonOutput" placeholder='{"items": [...]}'></textarea>
+        <p class="status-text">Modify JSON and rebuild cards.</p>
+        <button class="btn btn-outline" id="btnReparseJson">Rebuild from JSON</button>
+      </section>
+    </div>
+
+    <!-- TASK CARDS -->
+    <h2 class="section-title">3. Edit & Accept Tasks</h2>
+    <section class="card">
+      <p class="status-text">
+        Each line becomes a task card. Edit any card, then Accept to move it to your permanent Todo List.
+      </p>
+
+      <div id="draftContainer" class="todo-draft-grid"></div>
+
+      <div class="nav-buttons">
+        <button class="btn btn-ghost" id="btnClearDrafts">Clear Drafts</button>
+        <button class="btn btn-primary" id="btnGoToTodo">Go to Todo List →</button>
       </div>
     </section>
   </div>
 
-  <!-- RAW OCR + JSON -->
-  <h2 class="section-title">2. Review Extracted Text & JSON</h2>
-  <div class="layout">
-    <section class="card" style="flex:1 1 280px;">
-      <h3 style="margin-top:0;">Raw OCR Text</h3>
-      <textarea id="rawText" placeholder="OCR output will appear here..."></textarea>
-    </section>
+  <!-- PAGE: TODO LIST -->
+  <div id="pageTodo" style="display:none;">
+    <header class="app-header">
+      <div class="page-title-row">
+        <h2>My Todo List</h2>
+        <button class="btn btn-outline" id="btnBackToCapture">← Back to Capture</button>
+      </div>
+      <p class="status-text">Tasks you accepted from OCR.</p>
+    </header>
 
-    <section class="card" style="flex:1 1 280px;">
-      <h3 style="margin-top:0;">Parsed JSON (medications)</h3>
-      <textarea id="jsonOutput" placeholder='{"medications": [...]}'></textarea>
-      <p class="status-text">
-        JSON is generated automatically, but you can also tweak it or paste your own and re-parse.
-      </p>
-      <button class="btn btn-outline" type="button" id="btnReparseJson">
-        Rebuild cards from JSON
-      </button>
+    <section class="card card-sm">
+      <div id="todoList" class="todo-list"></div>
     </section>
   </div>
 
-  <!-- MED CARDS -->
-  <h2 class="section-title">3. Edit & Accept Medication Items</h2>
-  <section class="card card-medications">
-    <p class="status-text">
-      Each detected medication becomes a card. You can edit any field, then accept it to confirm
-      it as part of your medication list.
-    </p>
-    <div class="chips-row">
-      <span class="chip">💊 Name</span>
-      <span class="chip">📏 Dosage</span>
-      <span class="chip">⏰ Schedule</span>
-      <span class="chip">✅ Accept to confirm</span>
-    </div>
-
-    <div id="medContainer" class="med-grid" style="margin-top:.75rem;">
-      <!-- Cards injected here -->
-    </div>
-  </section>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
