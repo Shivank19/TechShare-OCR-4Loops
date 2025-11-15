@@ -1,22 +1,24 @@
-/* ==========================
+/* ==============================
    GLOBAL STATE
-========================== */
+============================== */
 let currentMode = "fast";
 let selectedLang = "eng";
 let videoStream = null;
+let usingCamera = false;
 
 let draftItems = [];
 let todoItems = [];
 
+/* Element refs */
 const modeFastBtn = document.getElementById("modeFast");
 const modeAccurateBtn = document.getElementById("modeAccurate");
 const langSelect = document.getElementById("langSelect");
 
-const cameraStatusEl = document.getElementById("cameraStatus");
-const statusEl = document.getElementById("status");
+const videoEl = document.getElementById("video");
+const previewImg = document.getElementById("preview");
+
 const rawTextEl = document.getElementById("rawText");
 const jsonOutputEl = document.getElementById("jsonOutput");
-const previewImg = document.getElementById("preview");
 
 const draftContainer = document.getElementById("draftContainer");
 const todoListEl = document.getElementById("todoList");
@@ -24,246 +26,215 @@ const todoListEl = document.getElementById("todoList");
 const pageCapture = document.getElementById("pageCapture");
 const pageTodo = document.getElementById("pageTodo");
 
-/* ==========================
+const toast = document.getElementById("toast");
+
+/* ==============================
+   TOAST FEEDBACK
+============================== */
+function showToast() {
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2000);
+}
+
+/* ==============================
    MODE & LANGUAGE SWITCH
-========================== */
-modeFastBtn.addEventListener("click", () => {
+============================== */
+modeFastBtn.onclick = () => {
   currentMode = "fast";
   modeFastBtn.classList.add("active");
   modeAccurateBtn.classList.remove("active");
-});
+  document.getElementById("modeStatus").textContent = "⚡ Fast mode enabled";
+  document.getElementById("modeStatus").style.background = "#fef3c7";
+  document.getElementById("modeStatus").style.color = "#92400e";
+};
 
-modeAccurateBtn.addEventListener("click", () => {
+
+modeAccurateBtn.onclick = () => {
   currentMode = "accurate";
   modeAccurateBtn.classList.add("active");
   modeFastBtn.classList.remove("active");
-});
+  document.getElementById("modeStatus").textContent = "🎯 Accurate mode enabled";
+  document.getElementById("modeStatus").style.background = "#dbeafe";
+  document.getElementById("modeStatus").style.color = "#1e3a8a";
+};
 
-langSelect.addEventListener("change", (e) => {
+langSelect.onchange = (e) => {
   selectedLang = e.target.value;
-});
+};
 
-/* ==========================
+/* ==============================
    PAGE NAVIGATION
-========================== */
-document.getElementById("btnGoToTodo").addEventListener("click", () => {
+============================== */
+document.getElementById("btnGoToTodo").onclick = () => {
   pageCapture.style.display = "none";
   pageTodo.style.display = "block";
-});
+};
 
-document.getElementById("btnBackToCapture").addEventListener("click", () => {
-  pageCapture.style.display = "block";
+document.getElementById("btnBackToCapture").onclick = () => {
   pageTodo.style.display = "none";
-});
+  pageCapture.style.display = "block";
+};
 
-/* ==========================
-   CAMERA FUNCTIONS
-========================== */
+/* ==============================
+   CAMERA START/STOP
+============================== */
 async function startCamera() {
   try {
-    if (videoStream) return;
-
-    cameraStatusEl.textContent = "Requesting camera...";
-
     videoStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment", width: { ideal: 720 } },
+      video: { facingMode: "environment" },
       audio: false
     });
-
-    document.getElementById("video").srcObject = videoStream;
-    cameraStatusEl.textContent = "Camera ready.";
+    videoEl.srcObject = videoStream;
+    usingCamera = true;
+    btnStartStopCamera.textContent = "Stop Camera";
   } catch (err) {
-    cameraStatusEl.textContent = "Camera error.";
-    console.error(err);
+    console.error("Camera error", err);
   }
 }
 
-async function captureFromCamera() {
-  const video = document.getElementById("video");
+function stopCamera() {
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+  }
+  videoStream = null;
+  videoEl.srcObject = null;
+  usingCamera = false;
+  btnStartStopCamera.textContent = "Start Camera";
+}
 
-  if (!videoStream || !video.videoWidth) {
-    cameraStatusEl.textContent = "Camera not ready.";
+document.getElementById("btnStartStopCamera").onclick = () => {
+  if (usingCamera) stopCamera();
+  else startCamera();
+};
+
+/* ==============================
+   CAPTURE IMAGE
+============================== */
+document.getElementById("btnCaptureOCR").onclick = () => {
+  if (!videoStream || !videoEl.videoWidth) {
+    alert("Start the camera first");
     return;
   }
 
-  cameraStatusEl.textContent = "Capturing frame...";
-
   const scale = currentMode === "fast" ? 0.9 : 1.0;
-  const width = video.videoWidth * scale;
-  const height = video.videoHeight * scale;
-
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = videoEl.videoWidth * scale;
+  canvas.height = videoEl.videoHeight * scale;
 
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0, width, height);
+  canvas.getContext("2d").drawImage(videoEl, 0, 0, canvas.width, canvas.height);
 
   const dataURL = canvas.toDataURL("image/png");
   previewImg.src = dataURL;
   previewImg.style.display = "block";
+};
 
-  await performOCR(dataURL);
-}
-
-document.getElementById("btnStartCamera").addEventListener("click", startCamera);
-document.getElementById("btnCaptureOCR").addEventListener("click", captureFromCamera);
-
-/* ==========================
-   IMAGE UPLOAD
-========================== */
-document.getElementById("btnUploadOCR").addEventListener("click", async () => {
-  const fileInput = document.getElementById("imageUpload");
-  const file = fileInput.files[0];
-  const uploadStatus = document.getElementById("uploadStatus");
-
-  if (!file) {
-    alert("Choose an image first.");
+document.getElementById("btnExtractCamera").onclick = () => {
+  if (!previewImg.src) {
+    alert("Capture an image first.");
     return;
   }
+  performOCR(previewImg.src);
+};
 
-  uploadStatus.textContent = "Processing image...";
+/* ==============================
+   IMAGE UPLOAD — preview immediately
+============================== */
+document.getElementById("imageUpload").onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
   const url = URL.createObjectURL(file);
+  previewImg.src = url;
+  previewImg.style.display = "block";
+};
 
-  const img = new Image();
-  img.onload = async () => {
-    let width = img.width;
-    let height = img.height;
+document.getElementById("btnUploadOCR").onclick = () => {
+  if (!previewImg.src) {
+    alert("Upload an image first.");
+    return;
+  }
+  performOCR(previewImg.src);
+};
 
-    if (currentMode === "fast") {
-      const maxDim = 1200;
-      const scale = Math.min(maxDim / width, maxDim / height, 1);
-      width *= scale;
-      height *= scale;
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-
-    canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-    const dataURL = canvas.toDataURL("image/png");
-
-    previewImg.src = dataURL;
-    previewImg.style.display = "block";
-
-    uploadStatus.textContent = "Running OCR...";
-    await performOCR(dataURL);
-    uploadStatus.textContent = "Done.";
-  };
-
-  img.src = url;
-});
-
-/* ==========================
+/* ==============================
    OCR PROCESSING
-========================== */
+============================== */
 async function performOCR(dataURL) {
-  try {
-    rawTextEl.value = "";
-    statusEl.textContent = "Running OCR...";
+  document.getElementById("ocrStatus").textContent = "⏳ Running OCR...";
+  document.getElementById("ocrStatus").style.background = "#fef3c7";
+  document.getElementById("ocrStatus").style.color = "#92400e";
+  const result = await Tesseract.recognize(dataURL, selectedLang);
+  const text = result.data.text;
 
-    const result = await Tesseract.recognize(dataURL, selectedLang);
-    const text = result.data.text || "";
+  rawTextEl.value = text;
 
-    rawTextEl.value = text;
-    statusEl.textContent = "Parsing text...";
+  const parsed = parseTodoText(text);
+  jsonOutputEl.value = JSON.stringify(parsed, null, 2);
 
-    const parsed = parseTodoText(text);
-    jsonOutputEl.value = JSON.stringify(parsed, null, 2);
+  document.getElementById("ocrStatus").textContent = "✅ OCR complete";
+  document.getElementById("ocrStatus").style.background = "#d1fae5";
+  document.getElementById("ocrStatus").style.color = "#065f46";
 
-    draftItems = parsed.items.map((item, i) => ({
-      id: i,
-      text: item.text,
-      editing: false,
-      accepted: false
-    }));
+  draftItems = parsed.items.map((item, index) => ({
+    id: index,
+    text: item.text,
+    editing: false,
+    accepted: false
+  }));
 
-    renderDraftCards();
-    statusEl.textContent = "Done.";
-  } catch (err) {
-    statusEl.textContent = "OCR error.";
-  }
+  renderDraftCards();
 }
 
-/* ==========================
-   TEXT → JSON PARSER
-========================== */
+/* ==============================
+   PARSER
+============================== */
 function parseTodoText(text) {
-  const lines = text.split("\n")
-    .map(l => l.trim())
-    .filter(l => l.length > 0);
-
-  const items = [];
-
-  for (let line of lines) {
-    const l = line.toLowerCase();
-    if (l === "todo" || l === "to do" || l === "tasks") continue;
-    items.push({ text: line });
-  }
-
-  return { items };
+  const lines = text.split("\n").map(l => l.trim()).filter(l => l);
+  return { items: lines.map(l => ({ text: l })) };
 }
 
-/* ==========================
-   DRAFT CARDS RENDERING
-========================== */
+/* ==============================
+   RENDER DRAFT CARDS
+============================== */
 function renderDraftCards() {
   draftContainer.innerHTML = "";
-
-  if (!draftItems.length) {
-    draftContainer.innerHTML = `<p class="status-text">No tasks yet.</p>`;
-    return;
-  }
 
   draftItems.forEach((item, index) => {
     const card = document.createElement("div");
     card.className = "todo-card";
 
-    // Header
-    const header = document.createElement("div");
-    header.className = "todo-header";
-
-    const title = document.createElement("h4");
-    title.textContent = item.text;
-    header.appendChild(title);
-
     if (item.accepted) {
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = "Accepted";
-      header.appendChild(badge);
+      card.classList.add("accepted");
     }
 
+    /* Header */
+    const header = document.createElement("div");
+    header.className = "todo-header";
+    header.innerHTML = `<h4>${item.text}</h4>`;
     card.appendChild(header);
 
-    // Body (view)
+    /* Body */
     const body = document.createElement("div");
     body.style.display = item.editing ? "none" : "block";
     body.textContent = item.text;
     card.appendChild(body);
 
-    // Editing
+    /* Edit Mode */
     const editDiv = document.createElement("div");
     editDiv.style.display = item.editing ? "block" : "none";
 
-    const editInput = document.createElement("input");
-    editInput.type = "text";
-    editInput.value = item.text;
-
-    editDiv.appendChild(editInput);
-
-    const editActions = document.createElement("div");
-    editActions.className = "todo-actions";
+    const input = document.createElement("input");
+    input.value = item.text;
+    editDiv.appendChild(input);
 
     const save = document.createElement("button");
     save.className = "btn btn-primary";
     save.textContent = "Save";
     save.onclick = () => {
-      draftItems[index].text = editInput.value.trim();
+      draftItems[index].text = input.value;
       draftItems[index].editing = false;
-      syncJSON();
       renderDraftCards();
+      syncJSON();
     };
 
     const cancel = document.createElement("button");
@@ -274,12 +245,11 @@ function renderDraftCards() {
       renderDraftCards();
     };
 
-    editActions.appendChild(save);
-    editActions.appendChild(cancel);
-    editDiv.appendChild(editActions);
+    editDiv.appendChild(save);
+    editDiv.appendChild(cancel);
     card.appendChild(editDiv);
 
-    // Actions (view mode)
+    /* Actions */
     const actions = document.createElement("div");
     actions.className = "todo-actions";
 
@@ -291,83 +261,90 @@ function renderDraftCards() {
       renderDraftCards();
     };
 
-    const acceptBtn = document.createElement("button");
-    acceptBtn.className = "btn btn-accept";
-    acceptBtn.textContent = "Accept";
-    acceptBtn.onclick = () => {
-      draftItems[index].accepted = true;
-      todoItems.push({
-        id: Date.now(),
-        text: draftItems[index].text,
-        completed: false
-      });
-      renderTodoList();
+    const accept = document.createElement("button");
+    accept.className = "btn btn-accept";
+    accept.textContent = item.accepted ? "Accepted" : "Accept";
+
+    if (item.accepted) accept.disabled = true;
+
+    accept.onclick = () => {
+      item.accepted = true;
+      todoItems.push({ text: item.text, completed: false });
+      showToast();
       renderDraftCards();
-      syncJSON();
+      renderTodoList();
     };
 
     actions.appendChild(editBtn);
-    actions.appendChild(acceptBtn);
+    actions.appendChild(accept);
     card.appendChild(actions);
 
     draftContainer.appendChild(card);
   });
 }
 
-/* ==========================
-   TODO LIST RENDERING
-========================== */
+/* ==============================
+   TODO LIST
+============================== */
 function renderTodoList() {
   todoListEl.innerHTML = "";
 
-  if (!todoItems.length) {
-    todoListEl.innerHTML = `<p class="status-text">No tasks yet.</p>`;
-    return;
-  }
-
-  todoItems.forEach((item, idx) => {
+  todoItems.forEach((item, index) => {
     const row = document.createElement("div");
     row.className = "todo-list-item";
 
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = item.completed;
-    checkbox.onclick = () => {
-      item.completed = checkbox.checked;
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = item.completed;
+    cb.onclick = () => {
+      item.completed = cb.checked;
       renderTodoList();
     };
-
-    const wrap = document.createElement("div");
-    wrap.className = "todo-list-text";
 
     const title = document.createElement("p");
     title.className = "todo-list-title";
     if (item.completed) title.classList.add("completed");
     title.textContent = item.text;
 
-    wrap.appendChild(title);
-    row.appendChild(checkbox);
-    row.appendChild(wrap);
+    row.appendChild(cb);
+    row.appendChild(title);
 
     todoListEl.appendChild(row);
   });
 }
 
-/* ==========================
+/* ==============================
    JSON SYNC
-========================== */
+============================== */
 function syncJSON() {
   jsonOutputEl.value = JSON.stringify({
-    items: draftItems.map(d => ({ text: d.text }))
+    items: draftItems.map(item => ({ text: item.text }))
   }, null, 2);
 }
 
-/* ==========================
-   CLEAR BUTTON
-========================== */
-document.getElementById("btnClearDrafts").addEventListener("click", () => {
+/* ==============================
+   CLEAR
+============================== */
+document.getElementById("btnClearDrafts").onclick = () => {
   draftItems = [];
   rawTextEl.value = "";
   jsonOutputEl.value = "";
   renderDraftCards();
-});
+};
+/* RESET UPLOAD FIELD ON PAGE LOAD ----------------------- */
+window.onload = () => {
+  const uploadInput = document.getElementById("imageUpload");
+  if (uploadInput) uploadInput.value = "";
+};
+window.onload = () => {
+  const uploadInput = document.getElementById("imageUpload");
+  if (uploadInput) uploadInput.value = "";
+};
+window.onload = () => {
+  const uploadInput = document.getElementById("rawText");
+  if (uploadInput) uploadInput.value = "";
+};
+window.onload = () => {
+  const uploadInput = document.getElementById("jsonOutput");
+  if (uploadInput) uploadInput.value = "";
+};

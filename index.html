@@ -11,32 +11,27 @@
 <body>
 <div class="app">
 
-  <!-- PAGE: CAPTURE & DRAFT -->
+  <!-- PAGE: CAPTURE -->
   <div id="pageCapture">
+
     <header class="app-header">
       <h1>OCR Todo Capture</h1>
-      <p>
-        Capture a handwritten or printed to-do list using your camera or upload an image.
-        We turn each line into editable task cards you can confirm into your Todo List.
-      </p>
+      <p>Capture or upload a handwritten/printed list → convert lines to tasks.</p>
 
-      <!-- FAST / ACCURATE MODE -->
+      <!-- MODES -->
       <div class="pill-row">
-        <button id="modeFast" class="active" type="button">⚡ Fast mode</button>
-        <button id="modeAccurate" type="button">🎯 Accurate mode</button>
+        <button id="modeFast" class="active">⚡ Fast</button>
+        <button id="modeAccurate">🎯 Accurate</button>
       </div>
-      <p class="flow-hint">
-        Fast mode runs quicker with mild downscaling.  
-        Accurate mode uses full resolution for cleaner text.
-      </p>
+      <div id="modeStatus" class="mode-status-badge">⚡ Fast mode enabled</div>
 
-      <!-- LANGUAGE DROPDOWN -->
-      <div style="margin-top:1rem;">
-        <label for="langSelect" class="lang-label">OCR Language:</label>
-        <select id="langSelect" class="lang-select">
+      <!-- LANGUAGE -->
+      <div class="lang-row">
+        <label>OCR Language:</label>
+        <select id="langSelect">
           <option value="eng">English</option>
-          <option value="spa">Spanish</option>
           <option value="hin">Hindi</option>
+          <option value="spa">Spanish</option>
           <option value="fra">French</option>
           <option value="deu">German</option>
           <option value="ita">Italian</option>
@@ -45,95 +40,106 @@
       </div>
     </header>
 
-    <!-- CAMERA CAPTURE -->
-    <h2 class="section-title">1. Capture with Camera</h2>
+    <!-- CAMERA + UPLOAD -->
+    <h2 class="section-title">1. Provide Your To-Do List</h2>
+
     <section class="card">
       <div class="layout">
-        <div class="card-half">
-          <h3>Live Camera</h3>
-          <p class="status-text">Start camera → capture → we extract tasks.</p>
 
+        <!-- CAMERA -->
+        <div class="card-half">
+          <h3>Camera Capture</h3>
           <div class="camera-container">
             <video id="video" autoplay playsinline></video>
-
             <div class="button-row">
-              <button class="btn btn-outline" id="btnStartCamera">Start Camera</button>
-              <button class="btn btn-primary" id="btnCaptureOCR">Capture & Extract</button>
+              <button class="btn btn-outline" id="btnStartStopCamera">Start Camera</button>
+              <button class="btn btn-primary" id="btnCaptureOCR">Capture</button>
+              <button class="btn btn-primary" id="btnExtractCamera">Extract</button>
             </div>
-
             <p id="cameraStatus" class="status-text"></p>
           </div>
         </div>
 
+        <!-- UPLOAD -->
         <div class="card-half">
-          <h3>Captured Snapshot</h3>
-          <img id="preview" style="display:none;">
+          <h3>Upload Image</h3>
+          <input type="file" id="imageUpload" accept="image/*" class="file-input">
+          <button class="btn btn-primary" id="btnUploadOCR">Extract Uploaded Image</button>
+          <p id="uploadStatus" class="status-text"></p>
         </div>
+
       </div>
     </section>
 
-    <!-- IMAGE UPLOAD -->
-    <h2 class="section-title">Or Upload an Image</h2>
-    <section class="card">
-      <h3>Upload To-Do List Image</h3>
-      <p class="status-text">Upload a photo/screenshot; we extract tasks from it.</p>
+      <div id="ocrStatus" class="ocr-status">Ready</div>
 
-      <input type="file" id="imageUpload" accept="image/*" class="file-input">
-
-      <button class="btn btn-primary" id="btnUploadOCR">Upload & Extract Tasks</button>
-
-      <p id="uploadStatus" class="status-text"></p>
+    <!-- PREVIEW -->
+    <section class="card preview-card">
+      <h3>Preview</h3>
+      <img id="preview" class="preview-img" style="display:none;">
     </section>
 
-    <!-- RAW OCR + JSON -->
-    <h2 class="section-title">2. Raw OCR & JSON</h2>
-    <div class="layout">
-      <section class="card card-half">
-        <h3>Raw OCR Text</h3>
-        <textarea id="rawText" placeholder="OCR text appears here..."></textarea>
-        <p id="status" class="status-text"></p>
-      </section>
 
-      <section class="card card-half">
-        <h3>Parsed JSON</h3>
-        <textarea id="jsonOutput" placeholder='{"items": [...]}'></textarea>
-        <p class="status-text">Modify JSON and rebuild cards.</p>
-        <button class="btn btn-outline" id="btnReparseJson">Rebuild from JSON</button>
-      </section>
+    <!-- SECTION 2: OCR TEXT + JSON -->
+    <h2 class="section-title">2. OCR Text & JSON</h2>
+
+    <section class="card section-two">
+      <div class="side-by-side">
+
+        <!-- RAW OCR -->
+        <div class="half-block">
+          <h3>Raw OCR Text</h3>
+          <textarea id="rawText" class="large-textarea"></textarea>
+          <p id="status" class="status-text"></p>
+        </div>
+
+        <!-- JSON -->
+        <div class="half-block">
+          <h3>JSON</h3>
+          <textarea id="jsonOutput" class="large-textarea"></textarea>
+
+          <div class="json-btn-container">
+            <button class="btn btn-outline" id="btnReparseJson">Rebuild Cards</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TASK SECTION -->
+    <h2 class="section-title">3. Edit & Accept Tasks</h2>
+
+    <div class="todo-navigation">
+      <button class="btn btn-accent" id="btnGoToTodo">Go to Todo List →</button>
     </div>
 
-    <!-- TASK CARDS -->
-    <h2 class="section-title">3. Edit & Accept Tasks</h2>
     <section class="card">
-      <p class="status-text">
-        Each line becomes a task card. Edit any card, then Accept to move it to your permanent Todo List.
-      </p>
-
       <div id="draftContainer" class="todo-draft-grid"></div>
-
       <div class="nav-buttons">
         <button class="btn btn-ghost" id="btnClearDrafts">Clear Drafts</button>
-        <button class="btn btn-primary" id="btnGoToTodo">Go to Todo List →</button>
       </div>
     </section>
+
   </div>
 
-  <!-- PAGE: TODO LIST -->
+  <!-- TODO PAGE -->
   <div id="pageTodo" style="display:none;">
     <header class="app-header">
       <div class="page-title-row">
         <h2>My Todo List</h2>
-        <button class="btn btn-outline" id="btnBackToCapture">← Back to Capture</button>
+        <button class="btn btn-outline" id="btnBackToCapture">← Back</button>
       </div>
-      <p class="status-text">Tasks you accepted from OCR.</p>
     </header>
 
-    <section class="card card-sm">
+    <section class="card card-sm todo-list-container">
       <div id="todoList" class="todo-list"></div>
     </section>
   </div>
 
 </div>
+
+<!-- FEEDBACK TOAST -->
+<div id="toast" class="toast">Task added to your Todo List ✔</div>
 
 <script src="script.js"></script>
 </body>
