@@ -9,13 +9,19 @@ let usingCamera = false;
 let draftItems = [];
 let todoItems = [];
 
-/* Element refs */
+/* ==============================
+   ELEMENT REFERENCES
+============================== */
 const modeFastBtn = document.getElementById("modeFast");
 const modeAccurateBtn = document.getElementById("modeAccurate");
 const langSelect = document.getElementById("langSelect");
 
+const btnEnhance = document.getElementById("btnEnhance");
+
 const videoEl = document.getElementById("video");
 const previewImg = document.getElementById("preview");
+
+const btnExtract = document.getElementById("btnExtractCamera");
 
 const rawTextEl = document.getElementById("rawText");
 const jsonOutputEl = document.getElementById("jsonOutput");
@@ -27,13 +33,15 @@ const pageCapture = document.getElementById("pageCapture");
 const pageTodo = document.getElementById("pageTodo");
 
 const toast = document.getElementById("toast");
-const btnExtract = document.getElementById("btnExtractCamera");
 
 /* ==============================
    INITIAL DISABLES
 ============================== */
 btnExtract.disabled = true;
+btnEnhance.disabled = true;
+
 btnExtract.classList.add("disabled-btn");
+btnEnhance.classList.add("disabled-btn");
 
 /* ==============================
    TOAST FEEDBACK
@@ -44,15 +52,13 @@ function showToast() {
 }
 
 /* ==============================
-   MODE & LANGUAGE SWITCH
+   MODE SWITCHING
 ============================== */
 modeFastBtn.onclick = () => {
   currentMode = "fast";
   modeFastBtn.classList.add("active");
   modeAccurateBtn.classList.remove("active");
   document.getElementById("modeStatus").textContent = "⚡ Fast mode enabled";
-  document.getElementById("modeStatus").style.background = "#fef3c7";
-  document.getElementById("modeStatus").style.color = "#92400e";
 };
 
 modeAccurateBtn.onclick = () => {
@@ -60,8 +66,6 @@ modeAccurateBtn.onclick = () => {
   modeAccurateBtn.classList.add("active");
   modeFastBtn.classList.remove("active");
   document.getElementById("modeStatus").textContent = "🎯 Accurate mode enabled";
-  document.getElementById("modeStatus").style.background = "#dbeafe";
-  document.getElementById("modeStatus").style.color = "#1e3a8a";
 };
 
 langSelect.onchange = (e) => {
@@ -82,30 +86,29 @@ document.getElementById("btnBackToCapture").onclick = () => {
 };
 
 /* ==============================
-   CAMERA START/STOP
+   CAMERA START / STOP
 ============================== */
 async function startCamera() {
   try {
     videoStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false
+      video: { facingMode: "environment" }, audio: false
     });
     videoEl.srcObject = videoStream;
     usingCamera = true;
     btnStartStopCamera.textContent = "Stop Camera";
     videoEl.style.display = "block";
   } catch (err) {
-    console.error("Camera error", err);
+    console.error("Camera error:", err);
   }
 }
 
 function stopCamera() {
-  if (videoStream) {
+  if (videoStream)
     videoStream.getTracks().forEach(t => t.stop());
-  }
+  
   videoStream = null;
-  videoEl.srcObject = null;
   usingCamera = false;
+  videoEl.srcObject = null;
   btnStartStopCamera.textContent = "Start Camera";
 }
 
@@ -114,15 +117,14 @@ document.getElementById("btnStartStopCamera").onclick = () => {
 };
 
 /* ==============================
-   CAPTURE IMAGE (UPDATED)
+   CAPTURE IMAGE
 ============================== */
 document.getElementById("btnCaptureOCR").onclick = function captureOnce() {
   if (!videoStream || !videoEl.videoWidth) {
-    alert("Start the camera first");
+    alert("Start the camera first.");
     return;
   }
 
-  // Capture frame
   const canvas = document.createElement("canvas");
   canvas.width = videoEl.videoWidth;
   canvas.height = videoEl.videoHeight;
@@ -130,54 +132,56 @@ document.getElementById("btnCaptureOCR").onclick = function captureOnce() {
 
   const dataURL = canvas.toDataURL("image/png");
 
-  // Show preview
   previewImg.src = dataURL;
   previewImg.style.display = "block";
 
-  // Hide live camera
   videoEl.style.display = "none";
 
-  // Enable Extract button
   btnExtract.disabled = false;
   btnExtract.classList.remove("disabled-btn");
 
-  // Switch Capture → Capture Again
+  btnEnhance.disabled = false;
+  btnEnhance.classList.remove("disabled-btn");
+
   const btnCapture = document.getElementById("btnCaptureOCR");
   btnCapture.textContent = "Capture Again";
 
   btnCapture.onclick = () => {
-    // Reset state
     previewImg.src = "";
     previewImg.style.display = "none";
 
     videoEl.style.display = "block";
 
-    // Re-disable Extract
     btnExtract.disabled = true;
     btnExtract.classList.add("disabled-btn");
 
+    btnEnhance.disabled = true;
+    btnEnhance.classList.add("disabled-btn");
+
     btnCapture.textContent = "Capture";
-    btnCapture.onclick = captureOnce; // Restore original behavior
+    btnCapture.onclick = captureOnce;
   };
 };
 
 /* ==============================
-   IMAGE UPLOAD
+   UPLOAD IMAGE
 ============================== */
 document.getElementById("imageUpload").onchange = (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
   const url = URL.createObjectURL(file);
+
   previewImg.src = url;
   previewImg.style.display = "block";
 
-  // Enable Extract button
+  videoEl.style.display = "none";
+
   btnExtract.disabled = false;
   btnExtract.classList.remove("disabled-btn");
 
-  // Hide video if active
-  videoEl.style.display = "none";
+  btnEnhance.disabled = false;
+  btnEnhance.classList.remove("disabled-btn");
 };
 
 document.getElementById("btnUploadOCR").onclick = () => {
@@ -185,31 +189,93 @@ document.getElementById("btnUploadOCR").onclick = () => {
     alert("Upload an image first.");
     return;
   }
-  performOCR(previewImg.src);
+
+  btnExtract.click(); // auto-enhance + OCR
 };
 
 /* ==============================
-   EXTRACT (DISABLED UNTIL PREVIEW)
+   AUTO-ENHANCE PIPELINE (OpenCV)
 ============================== */
-btnExtract.onclick = () => {
+async function enhanceHandwriting(dataURL) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = dataURL;
+
+    img.onload = function () {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+
+      const src = cv.imread(canvas);
+      let gray = new cv.Mat();
+      let blur = new cv.Mat();
+      let thresh = new cv.Mat();
+
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      cv.medianBlur(gray, blur, 3);
+
+      cv.adaptiveThreshold(
+        blur, thresh,
+        255,
+        cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv.THRESH_BINARY,
+        35, 10
+      );
+
+      cv.imshow(canvas, thresh);
+
+      src.delete(); gray.delete(); blur.delete(); thresh.delete();
+
+      resolve(canvas.toDataURL());
+    };
+  });
+}
+
+/* ==============================
+   AUTO-ENHANCE BUTTON (ONLY ENHANCE)
+============================== */
+btnEnhance.onclick = async () => {
   if (!previewImg.src) {
     alert("Capture or upload an image first.");
     return;
   }
-  performOCR(previewImg.src);
+
+  btnEnhance.textContent = "Enhancing...";
+  btnEnhance.disabled = true;
+
+  const enhanced = await enhanceHandwriting(previewImg.src);
+
+  previewImg.src = enhanced;
+
+  btnEnhance.textContent = "✨ Auto-enhance handwriting";
+  btnEnhance.disabled = false;
 };
 
 /* ==============================
-   OCR PROCESSING
+   EXTRACT (AUTO-ENHANCE + OCR)
 ============================== */
-async function performOCR(dataURL) {
+/* ==============================
+   EXTRACT (OCR ONLY — NO ENHANCE)
+============================== */
+btnExtract.onclick = async () => {
+  if (!previewImg.src) {
+    alert("Capture or upload an image first.");
+    return;
+  }
+
   const statusEl = document.getElementById("ocrStatus");
 
+  // Status update
   statusEl.textContent = "⏳ Running OCR...";
   statusEl.style.background = "#fef3c7";
   statusEl.style.color = "#92400e";
 
-  const result = await Tesseract.recognize(dataURL, selectedLang);
+  // OCR directly on preview image (raw or enhanced if user clicked button)
+  const result = await Tesseract.recognize(previewImg.src, selectedLang);
   const text = result.data.text;
 
   rawTextEl.value = text;
@@ -229,13 +295,16 @@ async function performOCR(dataURL) {
   }));
 
   renderDraftCards();
-}
+};
 
 /* ==============================
-   PARSER
+   PARSE OCR → LINES
 ============================== */
 function parseTodoText(text) {
-  const lines = text.split("\n").map(l => l.trim()).filter(l => l);
+  const lines = text.split("\n")
+      .map(l => l.trim())
+      .filter(l => l);
+
   return { items: lines.map(l => ({ text: l })) };
 }
 
@@ -248,24 +317,21 @@ function renderDraftCards() {
   draftItems.forEach((item, index) => {
     const card = document.createElement("div");
     card.className = "todo-card";
-
     if (item.accepted) card.classList.add("accepted");
 
-    /* Header */
     const header = document.createElement("div");
     header.className = "todo-header";
     header.innerHTML = `<h4>${item.text}</h4>`;
     card.appendChild(header);
 
-    /* Body */
     const body = document.createElement("div");
     body.style.display = item.editing ? "none" : "block";
     body.textContent = item.text;
     card.appendChild(body);
 
-    /* Edit Mode */
     const editDiv = document.createElement("div");
     editDiv.style.display = item.editing ? "block" : "none";
+
     const input = document.createElement("input");
     input.value = item.text;
     editDiv.appendChild(input);
@@ -292,7 +358,6 @@ function renderDraftCards() {
     editDiv.appendChild(cancel);
     card.appendChild(editDiv);
 
-    /* Actions */
     const actions = document.createElement("div");
     actions.className = "todo-actions";
 
@@ -319,14 +384,14 @@ function renderDraftCards() {
 
     actions.appendChild(editBtn);
     actions.appendChild(accept);
-    card.appendChild(actions);
 
+    card.appendChild(actions);
     draftContainer.appendChild(card);
   });
 }
 
 /* ==============================
-   TODO LIST
+   TODO LIST RENDER
 ============================== */
 function renderTodoList() {
   todoListEl.innerHTML = "";
@@ -364,7 +429,7 @@ function syncJSON() {
 }
 
 /* ==============================
-   CLEAR
+   CLEAR BUTTON
 ============================== */
 document.getElementById("btnClearDrafts").onclick = () => {
   draftItems = [];
@@ -373,7 +438,9 @@ document.getElementById("btnClearDrafts").onclick = () => {
   renderDraftCards();
 };
 
-/* RESET UPLOAD FIELDS ON LOAD */
+/* ==============================
+   RESET INPUTS ON LOAD
+============================== */
 window.onload = () => {
   document.getElementById("imageUpload").value = "";
   rawTextEl.value = "";
