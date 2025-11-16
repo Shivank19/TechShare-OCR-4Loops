@@ -196,3 +196,32 @@ body {
   border:1px solid #e5e7eb;
   text-align:center;
 }
+
+/* Keep video inside its card */
+.camera-container video {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+/* Prevent tall overflowing camera on small phones */
+@media (max-width: 600px) {
+  .camera-container video {
+    max-height: 260px;
+  }
+}
+
+/* Ensure preview image behaves the same */
+.preview-img {
+  width: 100%;
+  height: auto;
+  max-height: 260px;
+  object-fit: contain;
+}
+
+.disabled-btn {
+  opacity: 0.5;
+  pointer-events: none;
+}
