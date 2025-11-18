@@ -5,7 +5,7 @@ Users can upload an image or capture one through their camera, extract text usin
 
 ---
 
-Demo Application: [shivank19.github.io/TechShare-OCR-4Loops/](shivank19.github.io/TechShare-OCR-4Loops/) 
+Demo Application: [https://shivank19.github.io/TechShare-OCR-4Loops/](https://shivank19.github.io/TechShare-OCR-4Loops/) 
 
 ---
 
@@ -99,6 +99,7 @@ async function runOCR(image) {
 ### [**🔗 Tesseract.js API Documentation**](https://github.com/naptha/tesseract.js/blob/master/docs/api.md )
 ### [**🔗 Tesseract Trained Data Files**](https://tesseract-ocr.github.io/tessdoc/Data-Files)
 ### [**🔗 OpenCV.js Documentation**](https://docs.opencv.org/4.12.0/d2/df0/tutorial_js_table_of_contents_imgproc.html )
+
 
 
 
