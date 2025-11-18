@@ -64,9 +64,36 @@ npm install tesseract
 yarn add tesseract
 ```
 
+### Using Workers in Tesseract
+```bash
+async function initWorker(lang = "eng") {
+  const worker = await Tesseract.createWorker({
+    workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js",
+    corePath:   "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract-core.wasm.js",
+    langPath:   "https://tessdata.projectnaptha.com/4.0.0/"
+  });
+
+  await worker.loadLanguage(lang);
+  await worker.initialize(lang);
+
+  return worker;
+}
+
+async function runOCR(image) {
+  const worker = await initWorker('eng');
+  const { data } = await worker.recognize(image);
+  recognized_text = data.text;
+  await worker.terminate();
+}
+
+```
+**Sample code for using workers is available in [Examples](https://github.com/Shivank19/TechShare-OCR-4Loops/tree/main/examples)**
+
+
 # 📚 Additional Resources
 ### [**🔗 Tesseract.js Documentation**](https://tesseract.projectnaptha.com/)
 ### [**🔗 Tesseract.js API Documentation**](https://github.com/naptha/tesseract.js/blob/master/docs/api.md )
 ### [**🔗 Tesseract Trained Data Files**](https://tesseract-ocr.github.io/tessdoc/Data-Files)
 ### [**🔗 OpenCV.js Documentation**](https://docs.opencv.org/4.12.0/d2/df0/tutorial_js_table_of_contents_imgproc.html )
+
 
