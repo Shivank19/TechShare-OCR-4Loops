@@ -5,6 +5,10 @@ Users can upload an image or capture one through their camera, extract text usin
 
 ---
 
+Demo Application: [shivank19.github.io/TechShare-OCR-4Loops/](shivank19.github.io/TechShare-OCR-4Loops/) 
+
+---
+
 # 📘 About Tesseract.js
 
 [Tesseract.js](https://github.com/naptha/tesseract.js) is a pure JavaScript port of Google’s Tesseract OCR engine. It runs **entirely in the browser using WebAssembly**, making it:
@@ -95,6 +99,7 @@ async function runOCR(image) {
 ### [**🔗 Tesseract.js API Documentation**](https://github.com/naptha/tesseract.js/blob/master/docs/api.md )
 ### [**🔗 Tesseract Trained Data Files**](https://tesseract-ocr.github.io/tessdoc/Data-Files)
 ### [**🔗 OpenCV.js Documentation**](https://docs.opencv.org/4.12.0/d2/df0/tutorial_js_table_of_contents_imgproc.html )
+
 
 
 
