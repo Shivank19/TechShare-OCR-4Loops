@@ -87,7 +87,7 @@ async function runOCR(image) {
 }
 
 ```
-**Sample code for using workers is available in [Examples](https://github.com/Shivank19/TechShare-OCR-4Loops/tree/main/examples)**
+**An example for using workers is available in [Examples](https://github.com/Shivank19/TechShare-OCR-4Loops/tree/main/examples)**
 
 
 # 📚 Additional Resources
@@ -95,5 +95,6 @@ async function runOCR(image) {
 ### [**🔗 Tesseract.js API Documentation**](https://github.com/naptha/tesseract.js/blob/master/docs/api.md )
 ### [**🔗 Tesseract Trained Data Files**](https://tesseract-ocr.github.io/tessdoc/Data-Files)
 ### [**🔗 OpenCV.js Documentation**](https://docs.opencv.org/4.12.0/d2/df0/tutorial_js_table_of_contents_imgproc.html )
+
 
 
